@@ -1,1 +1,81 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import LSTM, Dense
+import matplotlib.pyplot as plt
 
+#Load your historical data into a DataFrame.
+data = pd.read_csv('https://query1.finance.yahoo.com/v7/finance/download/%5ENSEBANK?period1=1667915609&period2=1699451609&interval=1d&events=history&includeAdjustedClose=true')
+
+null_values = data.isnull()
+print(null_values)
+null_count = null_values.sum()
+print(null_count)
+
+data['Variation'] = data['Open'].diff()
+data['Variation'].fillna(data['Open'], inplace=True)
+data.dropna(subset=['Variation'], inplace=True)
+data.head
+
+# Use the 'Price_variation' column as the target variable.
+data = data[['Variation']]
+
+# Convert the data to numpy arrays and scale the values to [0, 1].
+scaler = MinMaxScaler()
+data = scaler.fit_transform(data)
+
+# Define the sequence length (number of time steps to look back).
+sequence_length = 10
+
+# Create sequences of data for training.
+X, y = [], []
+for i in range(len(data) - sequence_length):
+    X.append(data[i:i+sequence_length])
+    y.append(data[i+sequence_length])
+
+X, y = np.array(X), np.array(y)
+
+# Split the data into training and testing sets.
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+# Build an LSTM model.
+model = Sequential()
+model.add(LSTM(50, activation='relu', input_shape=(sequence_length, 1)))
+model.add(Dense(1))
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train the model.
+model.fit(X_train, y_train, epochs=50, batch_size=32)
+
+# Evaluate the model.
+loss = model.evaluate(X_test, y_test)
+print(f'Test Loss: {loss:.4f}')
+
+
+# Make predictions on the testing set.
+y_pred = model.predict(X_test)
+
+# Inverse transform the scaled data to get actual values.
+y_test = scaler.inverse_transform(y_test)
+y_pred = scaler.inverse_transform(y_pred)
+
+# Plot the actual and predicted prices.
+plt.figure(figsize=(6, 6))
+plt.plot(y_test, label='Actual Price_Variation ')
+plt.plot(y_pred, label='Predicted Price_Variation ')
+plt.legend()
+plt.xlabel('Time Steps')
+plt.ylabel('Close Price')
+plt.show()
+
+# Predict the next day's closing price.
+last_sequence = X[-1]
+next_day_sequence = np.append(last_sequence[1:], y[-1])
+next_day_sequence = next_day_sequence.reshape(1, sequence_length, 1)
+next_day_prediction = model.predict(next_day_sequence)
+next_day_prediction = scaler.inverse_transform(next_day_prediction)
+
+print(f'Predicted Next Day Price_Variation: {next_day_prediction[0][0]:.2f}')
