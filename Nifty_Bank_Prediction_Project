@@ -1,1 +1,49 @@
 
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+# Load your historical data into a DataFrame.
+
+data = pd.read_csv('https://query1.finance.yahoo.com/v7/finance/download/%5ENSEBANK?period1=1667915609&period2=1699451609&interval=1d&events=history&includeAdjustedClose=true')
+
+print(df.dtypes)
+
+# You can use open, high, low, close, and Variation as features.
+data['Variation'] = data['Open'].diff()
+data['Variation'].fillna(data['Open'], inplace=True)
+data.dropna(subset=['Variation'], inplace=True)
+data.head
+
+### Define the target variable (market price increase or decrease).
+# You can use 'price_variation' or create a binary target variable based on your criteria.
+data['target'] = data['Variation'].apply(lambda x: 'Increase' if x > 0 else 'Decrease')
+
+# Split the data into features (X) and the target variable (y).
+X = data[['Open', 'High', 'Low', 'Close']]
+y = data['target']
+
+# Split the data into training and testing sets (80% for training, 20% for testing).
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create and train a Random Forest Classifier.
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions on the testing set.
+y_pred = model.predict(X_test)
+
+# Calculate the accuracy of the model.
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Accuracy: {accuracy:.2f}')
+
+# Generate classification report for more detailed evaluation.
+print(classification_report(y_test, y_pred))
+
+# Predict market price increase or decrease for future data.
+# Replace 'new_data' with the features of the day you want to predict.
+new_data = pd.DataFrame({'Open': [100], 'High': [110], 'Low': [95], 'Close': [105]})
+predicted_result = model.predict(new_data)
+
+print(f'Predicted Market Price: {predicted_result[0]}')
